@@ -123,6 +123,47 @@ torch.cuda.manual_seed(seed)
 # torch.set_deterministic(True)
 # random.seed(seed)
 
+
+
+def calculate_batch_miou(preds, labels, num_classes):
+    """
+    Calcula o mIoU em um lote de previsões e rótulos.
+    
+    Args:
+        preds (Tensor): Tensor de máscaras de predição, shape [batch_size, height, width].
+        labels (Tensor): Tensor de rótulos ground truth, shape [batch_size, height, width].
+        num_classes (int): Número de classes.
+
+    Returns:
+        float: Valor médio de mIoU para o lote.
+    """
+    # Inicializa acumuladores para interseção e união de cada classe
+    iou_per_class = np.zeros(num_classes)
+    count_per_class = np.zeros(num_classes)
+
+    # Itera sobre o batch de previsões e rótulos
+    for pred, label in zip(preds, labels):
+        #pred = pred.cpu().numpy()
+        #label = label.cpu().numpy()
+
+        for cls in range(num_classes):
+            pred_cls = (pred == cls)
+            label_cls = (label == cls)
+            
+            intersection = np.logical_and(pred_cls, label_cls).sum()  # Interseção para a classe
+            union = np.logical_or(pred_cls, label_cls).sum()          # União para a classe
+
+            if union > 0:  # Apenas conta a classe se houver união
+                iou_per_class[cls] += intersection / union
+                count_per_class[cls] += 1
+
+    # Calcula o IoU médio por classe ignorando classes ausentes
+    miou_per_class = iou_per_class / np.maximum(count_per_class, 1)  # Evita divisão por zero
+    miou = np.nanmean(miou_per_class)  # Calcula a média final do mIoU para todas as classes
+
+    return miou
+
+
 for epoch in range(args.epochs):
 
     epoch_running_loss = 0
@@ -177,45 +218,6 @@ for epoch in range(args.epochs):
         miou = calculate_batch_miou(predicted_masks, val_dataset, num_classes)
         print(f"mIoU: {miou}")
 
-
-
-def calculate_batch_miou(preds, labels, num_classes):
-    """
-    Calcula o mIoU em um lote de previsões e rótulos.
-    
-    Args:
-        preds (Tensor): Tensor de máscaras de predição, shape [batch_size, height, width].
-        labels (Tensor): Tensor de rótulos ground truth, shape [batch_size, height, width].
-        num_classes (int): Número de classes.
-
-    Returns:
-        float: Valor médio de mIoU para o lote.
-    """
-    # Inicializa acumuladores para interseção e união de cada classe
-    iou_per_class = np.zeros(num_classes)
-    count_per_class = np.zeros(num_classes)
-
-    # Itera sobre o batch de previsões e rótulos
-    for pred, label in zip(preds, labels):
-        pred = pred.cpu().numpy()
-        label = label.cpu().numpy()
-
-        for cls in range(num_classes):
-            pred_cls = (pred == cls)
-            label_cls = (label == cls)
-            
-            intersection = np.logical_and(pred_cls, label_cls).sum()  # Interseção para a classe
-            union = np.logical_or(pred_cls, label_cls).sum()          # União para a classe
-
-            if union > 0:  # Apenas conta a classe se houver união
-                iou_per_class[cls] += intersection / union
-                count_per_class[cls] += 1
-
-    # Calcula o IoU médio por classe ignorando classes ausentes
-    miou_per_class = iou_per_class / np.maximum(count_per_class, 1)  # Evita divisão por zero
-    miou = np.nanmean(miou_per_class)  # Calcula a média final do mIoU para todas as classes
-
-    return miou
 
   
 
