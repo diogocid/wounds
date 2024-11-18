@@ -124,44 +124,23 @@ torch.cuda.manual_seed(seed)
 # random.seed(seed)
 
 
-
+# Função para calcular mIoU
 def calculate_batch_miou(preds, labels, num_classes):
-    """
-    Calcula o mIoU em um lote de previsões e rótulos.
-    
-    Args:
-        preds (Tensor): Tensor de máscaras de predição, shape [batch_size, height, width].
-        labels (Tensor): Tensor de rótulos ground truth, shape [batch_size, height, width].
-        num_classes (int): Número de classes.
-
-    Returns:
-        float: Valor médio de mIoU para o lote.
-    """
-    # Inicializa acumuladores para interseção e união de cada classe
     iou_per_class = np.zeros(num_classes)
     count_per_class = np.zeros(num_classes)
 
-    # Itera sobre o batch de previsões e rótulos
     for pred, label in zip(preds, labels):
-        #pred = pred.cpu().numpy()
-        #label = label.cpu().numpy()
-
         for cls in range(num_classes):
             pred_cls = (pred == cls)
             label_cls = (label == cls)
-            
-            intersection = np.logical_and(pred_cls, label_cls).sum()  # Interseção para a classe
-            union = np.logical_or(pred_cls, label_cls).sum()          # União para a classe
-
-            if union > 0:  # Apenas conta a classe se houver união
+            intersection = np.logical_and(pred_cls, label_cls).sum()
+            union = np.logical_or(pred_cls, label_cls).sum()
+            if union > 0:
                 iou_per_class[cls] += intersection / union
                 count_per_class[cls] += 1
 
-    # Calcula o IoU médio por classe ignorando classes ausentes
-    miou_per_class = iou_per_class / np.maximum(count_per_class, 1)  # Evita divisão por zero
-    miou = np.nanmean(miou_per_class)  # Calcula a média final do mIoU para todas as classes
-
-    return miou
+    miou_per_class = iou_per_class / np.maximum(count_per_class, 1)
+    return np.nanmean(miou_per_class)
 
 
 for epoch in range(args.epochs):
@@ -189,6 +168,8 @@ for epoch in range(args.epochs):
 
     # Salvar modelo e previsões em frequências definidas
     if (epoch % args.save_freq) == 0:
+        predictions = []
+        ground_truths = []
         for batch_idx, (X_batch, y_batch, *rest) in enumerate(valloader):
             if isinstance(rest[0][0], str):
                 image_filename = rest[0][0]
@@ -198,13 +179,25 @@ for epoch in range(args.epochs):
             X_batch = Variable(X_batch.to(device='cuda'))
             y_out = model(X_batch) 
             
+            print("y_out:",y_out)
+            print("y_out-shape:",y_out.shape)
             #y_out = matriz com 256,256,3
             # Processamento para multi-classe
             predicted_masks = torch.argmax(y_out, dim=1).detach().cpu().numpy() 
             #predicted_masks = matriz com 0,1,2
+            print("predicted_masks:",predicted_masks)
+            print("predicted_masks-shape:",predicted_masks.shape)
             predicted_masks = predicted_masks * 85  # Escalar para visualização
             yval = y_batch.detach().cpu().numpy() * 85
+            print("predicted_masks85:",predicted_masks)
+            print("predicted_masks85-shape:",predicted_masks.shape)
+            print("yval:",yval)
+            print("yval-shape:",yval.shape)
 
+            #predicted_masks = matriz com 0,1,2
+            predictions.append(predicted_masks[0])
+            ground_truths.append(yval)
+            
             fulldir = os.path.join(direc, f"{epoch}")
             if not os.path.isdir(fulldir):
                 os.makedirs(fulldir)
