@@ -196,10 +196,13 @@ for epoch in range(args.epochs):
                 image_filename = '%s.png' % str(batch_idx + 1).zfill(3)
 
             X_batch = Variable(X_batch.to(device='cuda'))
-            y_out = model(X_batch)
+            y_out = model(X_batch) 
             
+            #y_out = matriz com 256,256,3
             # Processamento para multi-classe
-            predicted_masks = torch.argmax(y_out, dim=1).detach().cpu().numpy() * 85  # Escalar para visualização
+            predicted_masks = torch.argmax(y_out, dim=1).detach().cpu().numpy() 
+            #predicted_masks = matriz com 0,1,2
+            predicted_masks = predicted_masks * 85  # Escalar para visualização
             yval = y_batch.detach().cpu().numpy() * 85
 
             fulldir = os.path.join(direc, f"{epoch}")
@@ -212,12 +215,11 @@ for epoch in range(args.epochs):
         # Salvar o modelo
         torch.save(model.state_dict(), os.path.join(fulldir, args.modelname + ".pth"))
         torch.save(model.state_dict(), os.path.join(direc, "final_model.pth"))
-                
+       
         num_classes = 3 
 
         miou = calculate_batch_miou(predicted_masks, val_dataset, num_classes)
         print(f"mIoU: {miou}")
-
 
   
 
