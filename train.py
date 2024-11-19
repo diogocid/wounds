@@ -179,6 +179,13 @@ for epoch in range(args.epochs):
             X_batch = Variable(X_batch.to(device='cuda'))
             y_out = model(X_batch) 
             
+            tmp = y_out.detach().cpu().numpy()
+            
+            yHaT = tmp
+            
+            #yHaT[yHaT==1] =255
+            print("yHaT:",yHaT)
+
             print("y_out:",y_out)
             print("y_out-shape:",y_out.shape)
             #y_out = matriz com 256,256,3

@@ -143,6 +143,7 @@ class ImageToImage2D(Dataset):
 
     def __getitem__(self, idx):
         image_filename = self.images_list[idx]
+        #np.set_printoptions(threshold=np.inf)
         #print(image_filename[: -3])
         # read image
         # print(os.path.join(self.input_path, image_filename))
@@ -153,6 +154,13 @@ class ImageToImage2D(Dataset):
         # read mask image
         mask = cv2.imread(os.path.join(self.output_path, image_filename[: -3] + "png"),0)
         
+        # Coordenadas dos valores diferentes de 0
+        non_zero_indices = np.argwhere(mask != 0)
+
+        # Exibir coordenadas e os respectivos valores
+        for coord in non_zero_indices:
+            value = mask[tuple(coord)]
+            print(f"Coordenada: {coord}, Valor: {value}")
         mask[mask<=127] = 0
         mask[mask>127] = 1
         # correct dimensions if needed
