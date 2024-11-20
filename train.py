@@ -276,12 +276,24 @@ for epoch in range(args.epochs):
         ground_truths = []
 
         for batch_idx, (X_batch, y_batch, *rest) in enumerate(valloader):
+            if isinstance(rest[0][0], str):
+                image_filename = rest[0][0]
+            else:
+                image_filename = '%s.png' % str(batch_idx + 1).zfill(3)
+
             X_batch = Variable(X_batch.to(device='cuda'))
             y_out = model(X_batch)
             
             predicted_masks = torch.argmax(y_out, dim=1).detach().cpu().numpy()
             ground_truths.append(y_batch.detach().cpu().numpy())
             predictions.append(predicted_masks)
+
+            fulldir = os.path.join(direc, f"{epoch}")
+            if not os.path.isdir(fulldir):
+                os.makedirs(fulldir)
+            # Salvar a predição e a máscara ground truth
+            cv2.imwrite(os.path.join(fulldir, image_filename), predicted_masks[0])
+                    
 
         # Converter para numpy arrays
         predictions = np.array(predictions).reshape(-1, *predicted_masks.shape[1:])
@@ -301,11 +313,12 @@ for epoch in range(args.epochs):
         # No loop de validação
         precision_per_class, recall_per_class = calculate_metrics(predictions, ground_truths, args.num_classes)
 
-        print(f"Epoch {epoch}/{args.epochs} - mIoU: {miou:.4f}")
         for cls in range(args.num_classes):
             print(f"Detecção -Class {cls} - Precision: {precision_per_class[cls]:.4f}, Recall: {recall_per_class[cls]:.4f}")
 
-
+        # Salvar o modelo
+        torch.save(model.state_dict(), os.path.join(fulldir, args.modelname + ".pth"))
+        torch.save(model.state_dict(), os.path.join(direc, "final_model.pth"))
 
 # Cálculo de métricas de segmentação
 iou, precision, recall = calculate_classwise_metrics(predictions, ground_truths, num_classes=args.num_classes)
