@@ -153,11 +153,12 @@ class ImageToImage2D(Dataset):
         # print(image.shape)
         # read mask image
         mask = cv2.imread(os.path.join(self.output_path, image_filename[: -3] + "png"),0)
+                     
         
-        
-        img = Image.open(os.path.join(self.output_path, image_filename[: -3] + "png")).convert('L')
-        arr = np.array(img)
-        print('mask',np.unique(arr)) 
+        mask[mask<128] = 0
+        mask[mask==128] = 1
+        mask[mask>128] = 2
+
         # correct dimensions if needed
         image, mask = correct_dims(image, mask)
         # print(image.shape)
