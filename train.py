@@ -26,6 +26,7 @@ import cv2
 from functools import partial
 from random import randint
 import timeit
+from IPython.display import display
 
 parser = argparse.ArgumentParser(description='MedT')
 parser.add_argument('-j', '--workers', default=16, type=int, metavar='N',
@@ -124,6 +125,8 @@ torch.cuda.manual_seed(seed)
 # random.seed(seed) 
 predictions = []
 ground_truths = []
+predictionsT = []
+ground_truthsT = []
 
 train_losses = []
 val_losses = []
@@ -137,6 +140,8 @@ for epoch in range(args.epochs):
     epoch_running_loss = 0
     predictions_train = []
     ground_truths_train = []
+    predictionsT = []
+    ground_truthsT = []
     
     for batch_idx, (X_batch, y_batch, *rest) in enumerate(dataloader):        
         
@@ -159,6 +164,10 @@ for epoch in range(args.epochs):
         predictions_train.append(predicted_masks)
         ground_truths_train.append(y_batch.detach().cpu().numpy())
         
+        predictionsT.append(predicted_masks)
+        ground_truthsT.append(y_batch.detach().cpu().numpy())
+
+        
     # Média do loss por batch
     train_loss = epoch_running_loss / (batch_idx + 1)
     train_losses.append(train_loss)
@@ -170,6 +179,19 @@ for epoch in range(args.epochs):
     train_miou_class1.append(iou_train[1])
     train_miou_class2.append(iou_train[2])
     
+    
+    # Converter para numpy arrays
+    predictionsT = np.array(predictionsT).reshape(-1, *predicted_masks.shape[1:])
+    ground_truthsT = np.array(ground_truthsT).reshape(-1, *predicted_masks.shape[1:])
+
+    # Cálculo de métricas de segmentação
+    iou, precision, recall = calculate_classwise_metrics(predictionsT, ground_truthsT, num_classes=args.num_classes)
+    
+    # Mostrar métricas de segmentação separadas por classe 
+    for cls in range(args.num_classes):
+        print(f"Segmentação - Class {cls} - IoU: {iou[cls]:.4f}, Precision: {precision[cls]:.4f}, Recall: {recall[cls]:.4f}")
+
+
     print('epoch [{}/{}], loss:{:.4f}'.format(epoch, args.epochs, epoch_running_loss / (batch_idx + 1)))
 
         # Avaliar métricas
@@ -186,14 +208,15 @@ for epoch in range(args.epochs):
             else:
                 image_filename = '%s.png' % str(batch_idx + 1).zfill(3)
 
-            X_batch = Variable(X_batch.to(device='cuda'))
+            X_batch, y_batch = X_batch.to(device), y_batch.to(device)  # Move inputs e labels para o mesmo dispositivo
+            #X_batch = Variable(X_batch.to(device='cuda'))
             y_out = model(X_batch)
             loss = criterion(y_out, y_batch)
             val_running_loss += loss.item()
             
             predicted_masks = torch.argmax(y_out, dim=1).detach().cpu().numpy()
-            # ground_truths.append(y_batch.detach().cpu().numpy())
-            # predictions.append(predicted_masks)
+            ground_truths.append(y_batch.detach().cpu().numpy())
+            predictions.append(predicted_masks)
             predictions_val.append(predicted_masks)
             ground_truths_val.append(y_batch.detach().cpu().numpy())
 
@@ -217,27 +240,28 @@ for epoch in range(args.epochs):
 
         print(f"Epoch [{epoch+1}/{args.epochs}], Val Loss: {val_loss:.4f}, Val mIoU Class 1: {iou_val[1]:.4f}, Val mIoU Class 2: {iou_val[2]:.4f}")
 
-        # # Converter para numpy arrays
-        # predictions = np.array(predictions).reshape(-1, *predicted_masks.shape[1:])
-        # ground_truths = np.array(ground_truths).reshape(-1, *predicted_masks.shape[1:])
+        # Converter para numpy arrays
+        predictions = np.array(predictions).reshape(-1, *predicted_masks.shape[1:])
+        ground_truths = np.array(ground_truths).reshape(-1, *predicted_masks.shape[1:])
 
-        # # Cálculo de métricas de segmentação
-        # iou, precision, recall = calculate_classwise_metrics(predictions, ground_truths, num_classes=args.num_classes)
+        # Cálculo de métricas de segmentação
+        iou, precision, recall = calculate_classwise_metrics(predictions, ground_truths, num_classes=args.num_classes)
         
-        # # Mostrar métricas de segmentação separadas por classe 
-        # for cls in range(args.num_classes):
-        #     print(f"Segmentação - Class {cls} - IoU: {iou[cls]:.4f}, Precision: {precision[cls]:.4f}, Recall: {recall[cls]:.4f}")
- 
-        # Salvar o modelo
-        # torch.save(model.state_dict(), os.path.join(fulldir, args.modelname + ".pth"))
-        # torch.save(model.state_dict(), os.path.join(direc, "final_model.pth"))
+        # Mostrar métricas de segmentação separadas por classe 
+        for cls in range(args.num_classes):
+            print(f"Segmentação - Class {cls} - IoU: {iou[cls]:.4f}, Precision: {precision[cls]:.4f}, Recall: {recall[cls]:.4f}")
 
-# # Cálculo de métricas de segmentação
-# iou, precision, recall = calculate_classwise_metrics(predictions, ground_truths, num_classes=args.num_classes)
 
-# # Mostrar métricas de segmentação separadas por classe 
-# for cls in range(args.num_classes):
-#     print(f"Segmentação - Class {cls} - IoU: {iou[cls]:.4f}, Precision: {precision[cls]:.4f}, Recall: {recall[cls]:.4f}")
+#Salvar o modelo
+torch.save(model.state_dict(), os.path.join(fulldir, args.modelname + ".pth"))
+torch.save(model.state_dict(), os.path.join(direc, "final_model.pth"))
+
+# Cálculo de métricas de segmentação
+iou, precision, recall = calculate_classwise_metrics(predictions, ground_truths, num_classes=args.num_classes)
+
+# Mostrar métricas de segmentação separadas por classe 
+for cls in range(args.num_classes):
+    print(f"Segmentação - Class {cls} - IoU: {iou[cls]:.4f}, Precision: {precision[cls]:.4f}, Recall: {recall[cls]:.4f}")
 
 
 # Gráficos
@@ -251,7 +275,8 @@ plt.xlabel("Epochs")
 plt.ylabel("Loss")
 plt.legend()
 plt.title("Loss per Epoch")
-plt.show()
+plt.savefig("LossperEpoch.png") 
+plt.close()
 
 # mIoU Class 1
 plt.figure(figsize=(10, 5))
@@ -260,8 +285,9 @@ plt.plot(epochs, val_miou_class1, label="Validation mIoU Class 1")
 plt.xlabel("Epochs")
 plt.ylabel("mIoU")
 plt.legend()
-plt.title("mIoU Class 1 per Epoch")
-plt.show()
+plt.title("mIoU Class 1 per Epoch") 
+plt.savefig("mIoU1_Epocht.png") 
+plt.close()
 
 # mIoU Class 2
 plt.figure(figsize=(10, 5))
@@ -271,4 +297,5 @@ plt.xlabel("Epochs")
 plt.ylabel("mIoU")
 plt.legend()
 plt.title("mIoU Class 2 per Epoch")
-plt.show()
+plt.savefig("mIoU2_Epocht.png") 
+plt.close()
