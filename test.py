@@ -106,30 +106,103 @@ model.load_state_dict(torch.load(loaddirec))
 model.eval()
 
 
+# predictions = []
+# ground_truths = []
+# for batch_idx, (X_batch, y_batch, *rest) in enumerate(valloader):
+#     # print(batch_idx)
+#     if isinstance(rest[0][0], str):
+#                 image_filename = rest[0][0]
+#     else:
+#                 image_filename = '%s.png' % str(batch_idx + 1).zfill(3)
+
+#     X_batch = Variable(X_batch.to(device='cuda'))
+#     y_batch = Variable(y_batch.to(device='cuda'))
+
+#     y_out = model(X_batch)
+#     predicted_masks = torch.argmax(y_out, dim=1).detach().cpu().numpy()
+#     ground_truths.append(y_batch.detach().cpu().numpy())
+#     predictions.append(predicted_masks)
+  
+# # Converter para numpy arrays
+# predictions = np.array(predictions).reshape(-1, *predicted_masks.shape[1:])
+# ground_truths = np.array(ground_truths).reshape(-1, *predicted_masks.shape[1:])
+
+# # Cálculo de métricas de segmentação
+# iou, precision, recall = calculate_classwise_metrics(predictions, ground_truths, num_classes=args.num_classes)
+    
+# # Mostrar métricas de segmentação separadas por classe 
+# for cls in range(args.num_classes):
+#     print(f"Segmentação - Class {cls} - IoU: {iou[cls]:.4f}, Precision: {precision[cls]:.4f}, Recall: {recall[cls]:.4f}")
+
 predictions = []
 ground_truths = []
+iou_classes = [[] for _ in range(args.num_classes)]
+precision_classes = [[] for _ in range(args.num_classes)]
+recall_classes = [[] for _ in range(args.num_classes)]
+
 for batch_idx, (X_batch, y_batch, *rest) in enumerate(valloader):
-    # print(batch_idx)
+    # Identificar o nome do arquivo, se aplicável
     if isinstance(rest[0][0], str):
-                image_filename = rest[0][0]
+        image_filename = rest[0][0]
     else:
-                image_filename = '%s.png' % str(batch_idx + 1).zfill(3)
+        image_filename = '%s.png' % str(batch_idx + 1).zfill(3)
 
     X_batch = Variable(X_batch.to(device='cuda'))
     y_batch = Variable(y_batch.to(device='cuda'))
 
     y_out = model(X_batch)
     predicted_masks = torch.argmax(y_out, dim=1).detach().cpu().numpy()
-    ground_truths.append(y_batch.detach().cpu().numpy())
+    predicted_masks = predicted_masks * 85  # Escalar para visualização
+    yval = y_batch.detach().cpu().numpy() * 85
+    ground_truths.append(yval)
     predictions.append(predicted_masks)
-  
+    
 # Converter para numpy arrays
 predictions = np.array(predictions).reshape(-1, *predicted_masks.shape[1:])
 ground_truths = np.array(ground_truths).reshape(-1, *predicted_masks.shape[1:])
 
 # Cálculo de métricas de segmentação
 iou, precision, recall = calculate_classwise_metrics(predictions, ground_truths, num_classes=args.num_classes)
-    
+
 # Mostrar métricas de segmentação separadas por classe 
 for cls in range(args.num_classes):
     print(f"Segmentação - Class {cls} - IoU: {iou[cls]:.4f}, Precision: {precision[cls]:.4f}, Recall: {recall[cls]:.4f}")
+    iou_classes[cls].append(iou[cls])
+    precision_classes[cls].append(precision[cls])
+    recall_classes[cls].append(recall[cls])
+
+# Gráficos para métricas de cada classe
+epochs = range(1, len(iou_classes[0]) + 1)
+
+# IoU por classe
+plt.figure(figsize=(10, 5))
+for cls in range(args.num_classes):
+    plt.plot(epochs, iou_classes[cls], label=f"Class {cls} IoU")
+plt.xlabel("Epochs")
+plt.ylabel("IoU")
+plt.legend()
+plt.title("IoU per Class over Epochs")
+plt.savefig("IoU_per_Class.png")
+plt.close()
+
+# Precision por classe
+plt.figure(figsize=(10, 5))
+for cls in range(args.num_classes):
+    plt.plot(epochs, precision_classes[cls], label=f"Class {cls} Precision")
+plt.xlabel("Epochs")
+plt.ylabel("Precision")
+plt.legend()
+plt.title("Precision per Class over Epochs")
+plt.savefig("Precision_per_Class.png")
+plt.close()
+
+# Recall por classe
+plt.figure(figsize=(10, 5))
+for cls in range(args.num_classes):
+    plt.plot(epochs, recall_classes[cls], label=f"Class {cls} Recall")
+plt.xlabel("Epochs")
+plt.ylabel("Recall")
+plt.legend()
+plt.title("Recall per Class over Epochs")
+plt.savefig("Recall_per_Class.png")
+plt.close()

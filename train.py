@@ -179,7 +179,8 @@ for epoch in range(args.epochs):
     train_miou_class1.append(iou_train[1])
     train_miou_class2.append(iou_train[2])
     
-    
+    print(f"Epoch [{epoch+1}/{args.epochs}], Train Loss: {val_loss:.4f}, Train mIoU Class 1: {iou_val[1]:.4f}, Train mIoU Class 2: {iou_val[2]:.4f}")
+
     # Converter para numpy arrays
     predictionsT = np.array(predictionsT).reshape(-1, *predicted_masks.shape[1:])
     ground_truthsT = np.array(ground_truthsT).reshape(-1, *predicted_masks.shape[1:])
@@ -189,7 +190,7 @@ for epoch in range(args.epochs):
     
     # Mostrar métricas de segmentação separadas por classe 
     for cls in range(args.num_classes):
-        print(f"Segmentação - Class {cls} - IoU: {iou[cls]:.4f}, Precision: {precision[cls]:.4f}, Recall: {recall[cls]:.4f}")
+        print(f"Segmentação Train - Class {cls} - IoU: {iou[cls]:.4f}, Precision: {precision[cls]:.4f}, Recall: {recall[cls]:.4f}")
 
 
     print('epoch [{}/{}], loss:{:.4f}'.format(epoch, args.epochs, epoch_running_loss / (batch_idx + 1)))
@@ -215,14 +216,17 @@ for epoch in range(args.epochs):
             val_running_loss += loss.item()
             
             predicted_masks = torch.argmax(y_out, dim=1).detach().cpu().numpy()
-            ground_truths.append(y_batch.detach().cpu().numpy())
+            predicted_masks = predicted_masks * 85  # Escalar para visualização
+            yval = y_batch.detach().cpu().numpy() * 85
+            ground_truths.append(yval)
             predictions.append(predicted_masks)
             predictions_val.append(predicted_masks)
-            ground_truths_val.append(y_batch.detach().cpu().numpy())
+            ground_truths_val.append(yval)
 
             fulldir = os.path.join(direc, f"{epoch}")
             if not os.path.isdir(fulldir):
                 os.makedirs(fulldir)
+
             # Salvar a predição e a máscara ground truth
             cv2.imwrite(os.path.join(fulldir, image_filename), predicted_masks[0])
                     
@@ -249,7 +253,7 @@ for epoch in range(args.epochs):
         
         # Mostrar métricas de segmentação separadas por classe 
         for cls in range(args.num_classes):
-            print(f"Segmentação - Class {cls} - IoU: {iou[cls]:.4f}, Precision: {precision[cls]:.4f}, Recall: {recall[cls]:.4f}")
+            print(f"Segmentação Valid - Class {cls} - IoU: {iou[cls]:.4f}, Precision: {precision[cls]:.4f}, Recall: {recall[cls]:.4f}")
 
 
 #Salvar o modelo
