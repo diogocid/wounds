@@ -17,7 +17,7 @@ import numpy as np
 from torchvision.utils import save_image
 import torch
 import torch.nn.init as init
-from utils import JointTransform2D, ImageToImage2D, Image2D
+from utils import JointTransform2D, ImageToImage2D, Image2D, calculate_classwise_metrics
 from metrics import jaccard_index, f1_score, LogNLLLoss,classwise_f1
 from utils import chk_mkdir, Logger, MetricList
 import cv2
@@ -106,6 +106,8 @@ model.load_state_dict(torch.load(loaddirec))
 model.eval()
 
 
+predictions = []
+ground_truths = []
 for batch_idx, (X_batch, y_batch, *rest) in enumerate(valloader):
     # print(batch_idx)
     if isinstance(rest[0][0], str):
@@ -117,33 +119,17 @@ for batch_idx, (X_batch, y_batch, *rest) in enumerate(valloader):
     y_batch = Variable(y_batch.to(device='cuda'))
 
     y_out = model(X_batch)
+    predicted_masks = torch.argmax(y_out, dim=1).detach().cpu().numpy()
+    ground_truths.append(y_batch.detach().cpu().numpy())
+    predictions.append(predicted_masks)
+  
+# Converter para numpy arrays
+predictions = np.array(predictions).reshape(-1, *predicted_masks.shape[1:])
+ground_truths = np.array(ground_truths).reshape(-1, *predicted_masks.shape[1:])
 
-    tmp2 = y_batch.detach().cpu().numpy()
-    tmp = y_out.detach().cpu().numpy()
-    tmp[tmp>=0.5] = 1
-    tmp[tmp<0.5] = 0
-    tmp2[tmp2>0] = 1
-    tmp2[tmp2<=0] = 0
-    tmp2 = tmp2.astype(int)
-    tmp = tmp.astype(int)
-
-    # print(np.unique(tmp2))
-    yHaT = tmp
-    yval = tmp2
-
-    epsilon = 1e-20
+# Cálculo de métricas de segmentação
+iou, precision, recall = calculate_classwise_metrics(predictions, ground_truths, num_classes=args.num_classes)
     
-    del X_batch, y_batch,tmp,tmp2, y_out
-
-    yHaT[yHaT==1] =255
-    yval[yval==1] =255
-    fulldir = direc+"/"
-    
-    if not os.path.isdir(fulldir):
-        
-        os.makedirs(fulldir)
-   
-    cv2.imwrite(fulldir+image_filename, yHaT[0,1,:,:])
-
-
-
+# Mostrar métricas de segmentação separadas por classe 
+for cls in range(args.num_classes):
+    print(f"Segmentação - Class {cls} - IoU: {iou[cls]:.4f}, Precision: {precision[cls]:.4f}, Recall: {recall[cls]:.4f}")

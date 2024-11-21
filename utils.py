@@ -284,3 +284,44 @@ class MetricList:
             return self.results
         else:
             return {key: value/normalize for key, value in self.results.items()}
+
+
+
+# Função para calcular mIoU, Precision e Recall.
+def calculate_classwise_metrics(preds, labels, num_classes):
+    """
+    Calcula métricas separadas por classe: mIoU, Precision e Recall.
+    """
+    iou_per_class = np.zeros(num_classes)
+    precision_per_class = np.zeros(num_classes)
+    recall_per_class = np.zeros(num_classes)
+    count_per_class = np.zeros(num_classes)
+
+    for pred, label in zip(preds, labels):
+        for cls in range(num_classes):
+            pred_cls = (pred == cls)
+            label_cls = (label == cls)
+
+            # # Interseção e união para IoU
+            intersection = np.logical_and(pred_cls, label_cls).sum()
+            union = np.logical_or(pred_cls, label_cls).sum()
+            if union > 0:
+                iou_per_class[cls] += intersection / union
+                count_per_class[cls] += 1
+
+            # Cálculo da Precision e Recall
+            tp = intersection
+            fp = pred_cls.sum() - tp
+            fn = label_cls.sum() - tp
+
+            if tp + fp > 0:
+                precision_per_class[cls] += tp / (tp + fp)
+            if tp + fn > 0:
+                recall_per_class[cls] += tp / (tp + fn)
+
+    # Média por classe
+    iou_per_class = iou_per_class / np.maximum(count_per_class, 1)
+    precision_per_class = precision_per_class / np.maximum(count_per_class, 1)
+    recall_per_class = recall_per_class / np.maximum(count_per_class, 1)
+
+    return iou_per_class, precision_per_class, recall_per_class
