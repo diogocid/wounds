@@ -179,7 +179,7 @@ for epoch in range(args.epochs):
     train_miou_class1.append(iou_train[1])
     train_miou_class2.append(iou_train[2])
     
-    print(f"Epoch [{epoch+1}/{args.epochs}], Train Loss: {val_loss:.4f}, Train mIoU Class 1: {iou_val[1]:.4f}, Train mIoU Class 2: {iou_val[2]:.4f}")
+    print(f"Epoch [{epoch+1}/{args.epochs}], Train Loss: {train_loss:.4f}, Train mIoU Class 1: {iou_train[1]:.4f}, Train mIoU Class 2: {iou_train[2]:.4f}")
 
     # Converter para numpy arrays
     predictionsT = np.array(predictionsT).reshape(-1, *predicted_masks.shape[1:])
@@ -216,8 +216,7 @@ for epoch in range(args.epochs):
             val_running_loss += loss.item()
             
             predicted_masks = torch.argmax(y_out, dim=1).detach().cpu().numpy()
-            predicted_masks = predicted_masks * 85  # Escalar para visualização
-            yval = y_batch.detach().cpu().numpy() * 85
+            yval = y_batch.detach().cpu().numpy()
             ground_truths.append(yval)
             predictions.append(predicted_masks)
             predictions_val.append(predicted_masks)
@@ -227,6 +226,7 @@ for epoch in range(args.epochs):
             if not os.path.isdir(fulldir):
                 os.makedirs(fulldir)
 
+            predicted_masks = predicted_masks * 85  # Escalar para visualização
             # Salvar a predição e a máscara ground truth
             cv2.imwrite(os.path.join(fulldir, image_filename), predicted_masks[0])
                     
