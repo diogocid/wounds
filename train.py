@@ -109,6 +109,11 @@ if torch.cuda.device_count() > 1:
   model = nn.DataParallel(model,device_ids=[0,1]).cuda()
 model.to(device)
 
+# # Calcular pesos para classes com base na frequência ou definir manualmente
+# class_weights = torch.Tensor([1, 5, 1]).to(device)  # Ajuste os pesos conforme necessário
+# # Criar o critério de perda com os pesos
+# criterion = nn.CrossEntropyLoss(weight=class_weights)
+
 criterion = nn.CrossEntropyLoss()
 optimizer = torch.optim.Adam(list(model.parameters()), lr=args.learning_rate,
                              weight_decay=1e-5)

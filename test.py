@@ -55,6 +55,10 @@ parser.add_argument('--device', default='cuda', type=str)
 parser.add_argument('--loaddirec', default='load', type=str)
 parser.add_argument('--imgsize', type=int, default=None)
 parser.add_argument('--gray', default='no', type=str)
+parser.add_argument('--num_classes', type=int, required=True, help='number of output classes')
+parser.add_argument('--aug', default='off', type=str,
+                    help='turn on img augmentation (default: off)')
+
 args = parser.parse_args()
 
 direc = args.direc
@@ -79,10 +83,10 @@ else:
 
 tf_train = JointTransform2D(crop=crop, p_flip=0.5, color_jitter_params=None, long_mask=True)
 tf_val = JointTransform2D(crop=crop, p_flip=0, color_jitter_params=None, long_mask=True)
-train_dataset = ImageToImage2D(args.train_dataset, tf_val)
+#train_dataset = ImageToImage2D(args.train_dataset, tf_val)
 val_dataset = ImageToImage2D(args.val_dataset, tf_val)
 predict_dataset = Image2D(args.val_dataset)
-dataloader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
+#dataloader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
 valloader = DataLoader(val_dataset, 1, shuffle=True)
 
 device = torch.device("cuda")
@@ -152,10 +156,14 @@ for batch_idx, (X_batch, y_batch, *rest) in enumerate(valloader):
 
     y_out = model(X_batch)
     predicted_masks = torch.argmax(y_out, dim=1).detach().cpu().numpy()
-    predicted_masks = predicted_masks * 85  # Escalar para visualização
-    yval = y_batch.detach().cpu().numpy() * 85
+    yval = y_batch.detach().cpu().numpy()
     ground_truths.append(yval)
     predictions.append(predicted_masks)
+    
+    fulldir = os.path.join(direc, f"{batch_idx}")
+    predicted_masks = predicted_masks * 85  # Escalar para visualização
+    # Salvar a predição e a máscara ground truth
+    cv2.imwrite(os.path.join(fulldir, image_filename), predicted_masks[0])
     
 # Converter para numpy arrays
 predictions = np.array(predictions).reshape(-1, *predicted_masks.shape[1:])
@@ -166,7 +174,7 @@ iou, precision, recall = calculate_classwise_metrics(predictions, ground_truths,
 
 # Mostrar métricas de segmentação separadas por classe 
 for cls in range(args.num_classes):
-    print(f"Segmentação - Class {cls} - IoU: {iou[cls]:.4f}, Precision: {precision[cls]:.4f}, Recall: {recall[cls]:.4f}")
+    print(f"Segmentação Test - Class {cls} - IoU: {iou[cls]:.4f}, Precision: {precision[cls]:.4f}, Recall: {recall[cls]:.4f}")
     iou_classes[cls].append(iou[cls])
     precision_classes[cls].append(precision[cls])
     recall_classes[cls].append(recall[cls])
@@ -181,8 +189,8 @@ for cls in range(args.num_classes):
 plt.xlabel("Epochs")
 plt.ylabel("IoU")
 plt.legend()
-plt.title("IoU per Class over Epochs")
-plt.savefig("IoU_per_Class.png")
+plt.title("Test - IoU per Class over Epochs")
+plt.savefig("IoU_per_ClassTest.png")
 plt.close()
 
 # Precision por classe
@@ -192,8 +200,8 @@ for cls in range(args.num_classes):
 plt.xlabel("Epochs")
 plt.ylabel("Precision")
 plt.legend()
-plt.title("Precision per Class over Epochs")
-plt.savefig("Precision_per_Class.png")
+plt.title("Test - Precision per Class over Epochs")
+plt.savefig("Precision_per_ClassTest.png")
 plt.close()
 
 # Recall por classe
@@ -203,6 +211,6 @@ for cls in range(args.num_classes):
 plt.xlabel("Epochs")
 plt.ylabel("Recall")
 plt.legend()
-plt.title("Recall per Class over Epochs")
-plt.savefig("Recall_per_Class.png")
+plt.title("Test - Recall per Class over Epochs")
+plt.savefig("Recall_per_ClassTest.png")
 plt.close()
