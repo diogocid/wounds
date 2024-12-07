@@ -178,39 +178,3 @@ for cls in range(args.num_classes):
     iou_classes[cls].append(iou[cls])
     precision_classes[cls].append(precision[cls])
     recall_classes[cls].append(recall[cls])
-
-# Gráficos para métricas de cada classe
-epochs = range(1, len(iou_classes[0]) + 1)
-
-# IoU por classe
-plt.figure(figsize=(10, 5))
-for cls in range(args.num_classes):
-    plt.plot(epochs, iou_classes[cls], label=f"Class {cls} IoU")
-plt.xlabel("Epochs")
-plt.ylabel("IoU")
-plt.legend()
-plt.title("Test - IoU per Class over Epochs")
-plt.savefig("IoU_per_ClassTest.png")
-plt.close()
-
-# Precision por classe
-plt.figure(figsize=(10, 5))
-for cls in range(args.num_classes):
-    plt.plot(epochs, precision_classes[cls], label=f"Class {cls} Precision")
-plt.xlabel("Epochs")
-plt.ylabel("Precision")
-plt.legend()
-plt.title("Test - Precision per Class over Epochs")
-plt.savefig("Precision_per_ClassTest.png")
-plt.close()
-
-# Recall por classe
-plt.figure(figsize=(10, 5))
-for cls in range(args.num_classes):
-    plt.plot(epochs, recall_classes[cls], label=f"Class {cls} Recall")
-plt.xlabel("Epochs")
-plt.ylabel("Recall")
-plt.legend()
-plt.title("Test - Recall per Class over Epochs")
-plt.savefig("Recall_per_ClassTest.png")
-plt.close()
